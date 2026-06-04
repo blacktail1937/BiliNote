@@ -31,5 +31,151 @@ class TestNoteHelper(unittest.TestCase):
         self.assertEqual(result, markdown)
 
 
+    # --- replace_content_markers tests ---
+
+    def test_replace_normal_mmss_with_brackets(self):
+        result = note_helper.replace_content_markers(
+            "细节见 *Content-[06:20] 处",
+            "BV1xx411c7mD", "bilibili"
+        )
+        self.assertIn("[原片 @ 06:20]", result)
+        self.assertIn("t=380", result)
+
+    def test_replace_normal_mmss_without_brackets(self):
+        result = note_helper.replace_content_markers(
+            "细节见 Content-06:20 处",
+            "BV1xx411c7mD", "bilibili"
+        )
+        self.assertIn("[原片 @ 06:20]", result)
+        self.assertIn("t=380", result)
+
+    def test_replace_normalizes_overflow_minutes(self):
+        result = note_helper.replace_content_markers(
+            "片段 *Content-[62:52] 处",
+            "BV1xx411c7mD", "bilibili"
+        )
+        self.assertIn("[原片 @ 1:02:52]", result)
+        self.assertIn("t=3772", result)
+
+    def test_replace_normalizes_120_minutes(self):
+        result = note_helper.replace_content_markers(
+            "*Content-[120:00]",
+            "BV1xx411c7mD", "bilibili"
+        )
+        self.assertIn("[原片 @ 2:00:00]", result)
+        self.assertIn("t=7200", result)
+
+    def test_replace_normalizes_overflow_minutes_no_brackets(self):
+        result = note_helper.replace_content_markers(
+            "Content-62:52",
+            "BV1xx411c7mD", "bilibili"
+        )
+        self.assertIn("[原片 @ 1:02:52]", result)
+        self.assertIn("t=3772", result)
+
+    def test_replace_preserves_explicit_hours(self):
+        result = note_helper.replace_content_markers(
+            "*Content-[1:02:52]",
+            "BV1xx411c7mD", "bilibili"
+        )
+        self.assertIn("[原片 @ 1:02:52]", result)
+        self.assertIn("t=3772", result)
+
+    def test_replace_explicit_hours_no_brackets(self):
+        result = note_helper.replace_content_markers(
+            "Content-1:02:52",
+            "BV1xx411c7mD", "bilibili"
+        )
+        self.assertIn("[原片 @ 1:02:52]", result)
+        self.assertIn("t=3772", result)
+
+    def test_replace_zero_time(self):
+        result = note_helper.replace_content_markers(
+            "Content-[00:00]",
+            "BV1xx411c7mD", "bilibili"
+        )
+        self.assertIn("[原片 @ 00:00]", result)
+        self.assertIn("t=0", result)
+
+    def test_replace_youtube_platform(self):
+        result = note_helper.replace_content_markers(
+            "Content-[06:20]",
+            "abc123xyz", "youtube"
+        )
+        self.assertIn("[原片 @ 06:20]", result)
+        self.assertIn("youtube.com/watch?v=abc123xyz", result)
+        self.assertIn("t=380s", result)
+
+    def test_replace_youtube_overflow_minutes(self):
+        result = note_helper.replace_content_markers(
+            "Content-[62:52]",
+            "abc123xyz", "youtube"
+        )
+        self.assertIn("[原片 @ 1:02:52]", result)
+        self.assertIn("t=3772s", result)
+
+    def test_replace_douyin_platform(self):
+        result = note_helper.replace_content_markers(
+            "Content-[06:20]",
+            "123456789", "douyin"
+        )
+        self.assertIn("[原片 @ 06:20]", result)
+        self.assertIn("douyin.com/video/123456789", result)
+        self.assertNotIn("t=", result)
+
+    def test_replace_douyin_overflow_minutes(self):
+        result = note_helper.replace_content_markers(
+            "Content-[62:52]",
+            "123456789", "douyin"
+        )
+        self.assertIn("[原片 @ 1:02:52]", result)
+
+    def test_replace_unknown_platform(self):
+        result = note_helper.replace_content_markers(
+            "Content-[06:20]",
+            "some_id", "bilibili"
+        )
+        self.assertIn("[原片 @ 06:20]", result)
+
+    def test_replace_bilibili_multipart_video_id(self):
+        result = note_helper.replace_content_markers(
+            "Content-[06:20]",
+            "BV1xx411c7mD_p2", "bilibili"
+        )
+        self.assertIn("[原片 @ 06:20]", result)
+        self.assertIn("?p=2&t=380", result)
+        self.assertNotIn("/?t=", result)
+
+    def test_replace_bilibili_multipart_with_overflow(self):
+        result = note_helper.replace_content_markers(
+            "Content-[62:52]",
+            "BV1xx411c7mD_p3", "bilibili"
+        )
+        self.assertIn("[原片 @ 1:02:52]", result)
+        self.assertIn("?p=3&t=3772", result)
+
+    def test_replace_multiple_markers_in_one_text(self):
+        result = note_helper.replace_content_markers(
+            "开头 Content-[00:00]，中间 Content-[06:20]，结尾 Content-[62:52]",
+            "BV1xx411c7mD", "bilibili"
+        )
+        self.assertIn("[原片 @ 00:00]", result)
+        self.assertIn("[原片 @ 06:20]", result)
+        self.assertIn("[原片 @ 1:02:52]", result)
+        self.assertEqual(result.count("[原片 @"), 3)
+
+    def test_replace_no_marker_returns_unchanged(self):
+        text = "这是一段普通文本，没有时间标记"
+        result = note_helper.replace_content_markers(text, "BVxxx")
+        self.assertEqual(result, text)
+
+    def test_replace_asterisk_prefix_handled(self):
+        result = note_helper.replace_content_markers(
+            "*Content-[06:20]* 和 Content-[06:20]",
+            "BV1xx411c7mD", "bilibili"
+        )
+        self.assertEqual(result.count("[原片 @ 06:20]"), 2)
+
+
 if __name__ == "__main__":
     unittest.main()

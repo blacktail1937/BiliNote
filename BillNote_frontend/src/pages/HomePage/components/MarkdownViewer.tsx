@@ -132,7 +132,7 @@ function createMarkdownComponents(baseURL: string) {
           //（例如 heading 带 *Content-[00:00]* 后缀，目录链接里没有）
           if (!target) {
             const normalize = (s: string) =>
-              s.replace(/[-：:\s*\[\]]/g, '').toLowerCase()
+              s.replace(/[^\w\u4e00-\u9fff]/g, '').toLowerCase()
             const search = normalize(id)
             const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6')
             for (const h of headings) {

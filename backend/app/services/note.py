@@ -214,13 +214,14 @@ class NoteGenerator:
             )
 
             # 4. 截图 & 链接替换
-            if _format:
+            if _format or link:
                 markdown = self._post_process_markdown(
                     markdown=markdown,
                     video_path=self.video_path,
-                    formats=_format,
+                    formats=_format or [],
                     audio_meta=audio_meta,
                     platform=platform,
+                    link=link,
                 )
 
             markdown = prepend_source_link(markdown, str(video_url))
@@ -625,6 +626,7 @@ class NoteGenerator:
         formats: List[str],
         audio_meta: AudioDownloadResult,
         platform: str,
+        link: bool = False,
     ) -> str:
         """
         对生成的 Markdown 做后期处理：插入截图和/或插入链接。
@@ -634,6 +636,7 @@ class NoteGenerator:
         :param formats: 包含 'link' 或 'screenshot' 的列表
         :param audio_meta: AudioDownloadResult 元信息，用于链接替换
         :param platform: 平台标识，用于链接替换
+        :param link: 是否启用原片跳转链接（作为 formats 的兜底）
         :return: 处理后的 Markdown 字符串
         """
         if "screenshot" in formats and video_path:
@@ -642,7 +645,7 @@ class NoteGenerator:
             except Exception as exc:
                 logger.warning("截图插入失败，跳过该步骤")
 
-        if "link" in formats:
+        if "link" in formats or link:
             try:
                 markdown = replace_content_markers(markdown, video_id=audio_meta.video_id, platform=platform)
             except Exception as e:

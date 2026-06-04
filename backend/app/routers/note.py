@@ -7,7 +7,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks, UploadFile, File
-from pydantic import BaseModel, validator, field_validator
+from pydantic import BaseModel, Field, validator, field_validator
 from dataclasses import asdict
 
 from app.db.video_task_dao import get_task_by_video
@@ -44,7 +44,7 @@ class VideoRequest(BaseModel):
     model_name: str
     provider_id: str
     task_id: Optional[str] = None
-    format: Optional[list] = []
+    note_format: Optional[list] = Field(default=[], alias="format")
     style: str = None
     extras: Optional[str]=None
     video_understanding: Optional[bool] = False
@@ -227,8 +227,8 @@ def generate_note(data: VideoRequest, background_tasks: BackgroundTasks):
                 logger.warning(f"写入预取字幕失败 (task_id={task_id}): {e}")
 
         background_tasks.add_task(run_note_task, task_id, data.video_url, data.platform, data.quality, data.link,
-                                  data.screenshot, data.model_name, data.provider_id, data.format, data.style,
-                                  data.extras, data.video_understanding, data.video_interval, data.grid_size)
+                          data.screenshot, data.model_name, data.provider_id, data.note_format, data.style,
+                          data.extras, data.video_understanding, data.video_interval, data.grid_size)
         return R.success({"task_id": task_id})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
