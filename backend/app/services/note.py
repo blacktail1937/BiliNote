@@ -31,7 +31,7 @@ from app.services.constant import SUPPORT_PLATFORM_MAP
 from app.services.provider import ProviderService
 from app.transcriber.base import Transcriber
 from app.transcriber.transcriber_provider import get_transcriber, _transcribers
-from app.utils.note_helper import replace_content_markers, prepend_source_link
+from app.utils.note_helper import replace_content_markers, prepend_source_link, prepend_toc
 from app.utils.screenshot_marker import extract_screenshot_timestamps
 from app.utils.status_code import StatusCode
 from app.utils.video_helper import generate_screenshot
@@ -55,8 +55,8 @@ IMAGE_OUTPUT_DIR = os.getenv("OUT_DIR", "./static/screenshots")
 IMAGE_BASE_URL = os.getenv("IMAGE_BASE_URL", "/static/screenshots")
 
 # 日志配置
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+from app.utils.logger import get_logger
+logger = get_logger(__name__)
 
 
 class NoteGenerator:
@@ -225,6 +225,8 @@ class NoteGenerator:
                 )
 
             markdown = prepend_source_link(markdown, str(video_url))
+            if _format and 'toc' in _format:
+                markdown = prepend_toc(markdown)
 
             # 5. 保存记录到数据库
             self._update_status(task_id, TaskStatus.SAVING)

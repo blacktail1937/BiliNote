@@ -177,5 +177,49 @@ class TestNoteHelper(unittest.TestCase):
         self.assertEqual(result.count("[原片 @ 06:20]"), 2)
 
 
+    # --- prepend_toc tests ---
+
+    def test_toc_generates_from_headings(self):
+        md = "## 简介\n\n内容\n\n## 方法\n\n步骤\n\n## 总结"
+        result = note_helper.prepend_toc(md)
+        self.assertIn("## 目录", result)
+        self.assertIn("[简介](#简介)", result)
+        self.assertIn("[方法](#方法)", result)
+        self.assertIn("[总结](#总结)", result)
+        self.assertTrue(result.startswith("## 目录"))
+
+    def test_toc_less_than_two_headings_skipped(self):
+        md = "## 简介\n\n内容"
+        result = note_helper.prepend_toc(md)
+        self.assertEqual(result, md)
+
+    def test_toc_no_headings_skipped(self):
+        md = "纯文本内容"
+        result = note_helper.prepend_toc(md)
+        self.assertEqual(result, md)
+
+    def test_toc_empty_string(self):
+        self.assertEqual(note_helper.prepend_toc(""), "")
+
+    def test_toc_strips_content_markers_from_display(self):
+        md = "## AI 发展史 *Content-[01:23]\n\n内容\n\n## AI 未来 *Content-[05:00]"
+        result = note_helper.prepend_toc(md)
+        self.assertIn("[AI 发展史]", result)
+        self.assertNotIn("*Content-", result.split("---")[0])
+        self.assertIn("[AI 未来]", result)
+
+    def test_toc_slug_matches_rehype_slug_format(self):
+        md = "## Hello World\n\n内容\n\n## AI 风口的舆论炒作与现实"
+        result = note_helper.prepend_toc(md)
+        self.assertIn("(#hello-world)", result)
+        self.assertIn("(#ai-风口的舆论炒作与现实)", result)
+
+    def test_toc_deduplicates_identical_headings(self):
+        md = "## 结果\n\n内容\n\n## 结果\n\n更多"
+        result = note_helper.prepend_toc(md)
+        self.assertIn("(#结果)", result)
+        self.assertIn("(#结果-1)", result)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -19,7 +19,7 @@ from app.services.task_serial_executor import task_serial_executor
 from app.utils.response import ResponseWrapper as R
 from app.utils.url_parser import extract_video_id
 from app.validators.video_url_validator import is_supported_video_url
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Query
 from fastapi.responses import StreamingResponse
 import httpx
 from app.enmus.task_status_enums import TaskStatus
@@ -157,6 +157,7 @@ def run_note_task(task_id: str, video_url: str, platform: str, quality: Download
 
 @router.post('/delete_task')
 def delete_task(data: RecordRequest):
+    """删除指定视频的笔记任务"""
     try:
         # TODO: 待持久化完成
         # NoteGenerator().delete_note(video_id=data.video_id, platform=data.platform)
@@ -166,19 +167,32 @@ def delete_task(data: RecordRequest):
 
 
 @router.post("/upload")
-async def upload(file: UploadFile = File(...)):
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    file_location = os.path.join(UPLOAD_DIR, file.filename)
+async def upload(file: UploadFile = File(..., description="上传文件（图片、音频等）")):
+    """上传本地文件，返回可访问的 URL"""
+    logger.info(f"收到上传请求: filename={file.filename}, content_type={file.content_type}")
 
-    with open(file_location, "wb+") as f:
-        f.write(await file.read())
+    try:
+        actual_size = 0
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        file_location = os.path.join(UPLOAD_DIR, file.filename)
 
-    # 假设你静态目录挂载了 /uploads
-    return R.success({"url": f"/uploads/{file.filename}"})
+        CHUNK_SIZE = 8 * 1024 * 1024
+        with open(file_location, "wb") as f:
+            while chunk := await file.read(CHUNK_SIZE):
+                actual_size += len(chunk)
+                f.write(chunk)
+
+        logger.info(f"上传完成: {file.filename}, 大小={actual_size} 字节, 路径={file_location}")
+        return R.success({"url": f"/uploads/{file.filename}"})
+
+    except Exception as e:
+        logger.error(f"上传失败: {file.filename}, 错误={e}", exc_info=True)
+        return R.error(msg=f"上传失败: {e}")
 
 
 @router.post("/generate_note")
 def generate_note(data: VideoRequest, background_tasks: BackgroundTasks):
+    """提交视频链接生成笔记（异步任务），返回 task_id 用于轮询结果"""
     try:
         # 就绪门禁：本地转写引擎（fast-whisper / mlx-whisper）必须等模型下载完才能跑视频，
         # 否则任务会卡在首次下载（慢 / OOM / 截断），用户只看到一个静默失败的任务。
@@ -236,6 +250,7 @@ def generate_note(data: VideoRequest, background_tasks: BackgroundTasks):
 
 @router.get("/task_status/{task_id}")
 def get_task_status(task_id: str):
+    """查询笔记生成任务状态，成功时返回笔记内容"""
     status_path = os.path.join(NOTE_OUTPUT_DIR, f"{task_id}.status.json")
     result_path = os.path.join(NOTE_OUTPUT_DIR, f"{task_id}.json")
 
@@ -295,7 +310,8 @@ def get_task_status(task_id: str):
 
 
 @router.get("/image_proxy")
-async def image_proxy(request: Request, url: str):
+async def image_proxy(request: Request, url: str = Query(..., description="图片 URL（用于绕过 B站 Referer 限制）")):
+    """代理获取图片，解决 B 站等平台的 Referer 防盗链问题"""
     headers = {
         "Referer": "https://www.bilibili.com/",
         "User-Agent": request.headers.get("User-Agent", ""),

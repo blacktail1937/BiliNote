@@ -31,6 +31,42 @@ def prepend_source_link(markdown: str | None, source_url: str) -> str | None:
     return header
 
 
+def _slugify(text: str) -> str:
+    """生成匹配 rehype-slug (github-slugger) 的锚点 ID。"""
+    text = text.lower().strip()
+    text = re.sub(r'\s+', '-', text)
+    text = re.sub(r'[^\w\u4e00-\u9fff\-]', '', text)
+    text = re.sub(r'-+', '-', text)
+    return text.strip('-')
+
+
+def prepend_toc(markdown: str) -> str:
+    """提取所有 ## 标题，自动生成目录并插入笔记开头。"""
+    if not markdown:
+        return markdown
+
+    headings = re.findall(r'^##\s+(.+)$', markdown, re.MULTILINE)
+    if len(headings) < 2:
+        return markdown
+
+    toc_items = []
+    seen_slugs = {}
+    for h in headings:
+        clean = re.sub(r'\*?(?:Content|Screenshot)-\[.*?\]\*?', '', h).strip()
+        if not clean:
+            clean = h.strip()
+        slug = _slugify(clean)
+        if slug in seen_slugs:
+            seen_slugs[slug] += 1
+            slug = f'{slug}-{seen_slugs[slug]}'
+        else:
+            seen_slugs[slug] = 0
+        toc_items.append(f'  - [{clean}](#{slug})')
+
+    toc = '## 目录\n\n' + '\n'.join(toc_items) + '\n\n---\n'
+    return toc + markdown
+
+
 def replace_content_markers(markdown: str, video_id: str, platform: str = 'bilibili') -> str:
     """
     替换 *Content-04:16*、Content-04:16、Content-[04:16] 或 *Content-[01:09:30] 为超链接
