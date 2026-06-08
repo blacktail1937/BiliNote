@@ -52,7 +52,10 @@ def prepend_toc(markdown: str) -> str:
     toc_items = []
     seen_slugs = {}
     for h in headings:
-        clean = re.sub(r'\*?(?:Content|Screenshot)-\[.*?\]\*?', '', h).strip()
+        clean = re.sub(r'\s*\*?(?:Content|Screenshot)-\[.*?\]\*?', '', h).strip()
+        clean = re.sub(r'\s*\[原片 @ [^\]]+\]\([^)]+\)', '', clean).strip()
+        clean = re.sub(r'\s*原片[（(]\d{1,2}:\d{1,2}[）)]', '', clean).strip()
+        clean = re.sub(r'\s*\[.+?\]\([^)]+\)', '', clean).strip()
         if not clean:
             clean = h.strip()
         slug = _slugify(clean)

@@ -29,9 +29,11 @@ def generate_base_prompt(title, segment_text, tags, _format=None, style=None, ex
         tags=tags
     )
 
-    # 添加用户选择的格式
+    # 添加用户选择的格式（目录由后端自动生成，不发给 LLM）
     if _format:
-        prompt += "\n" + "\n".join([get_format_function(f) for f in _format])
+        active_formats = [f for f in _format if f != 'toc']
+        if active_formats:
+            prompt += "\n" + "\n".join([get_format_function(f) for f in active_formats])
 
     # 根据用户选择的笔记风格添加描述
     if style:

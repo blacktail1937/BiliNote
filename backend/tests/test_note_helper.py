@@ -208,6 +208,20 @@ class TestNoteHelper(unittest.TestCase):
         self.assertNotIn("*Content-", result.split("---")[0])
         self.assertIn("[AI 未来]", result)
 
+    def test_toc_strips_replaced_time_links_from_display(self):
+        md = "## 编译过程概述 [原片 @ 00:26](https://url)\n\n内容\n\n## GDB 调试实战 [原片 @ 07:26](https://url)"
+        result = note_helper.prepend_toc(md)
+        self.assertIn("[编译过程概述]", result)
+        self.assertNotIn("[原片 @", result.split("---")[0])
+        self.assertIn("[GDB 调试实战]", result)
+
+    def test_toc_strips_llm_generated_chinese_parentheses_time(self):
+        md = "## 2. 从 C 程序到可执行文件 原片（00:26）\n\n内容\n\n## 3. 汇编语言基础 原片（01:17）"
+        result = note_helper.prepend_toc(md)
+        self.assertIn("[2. 从 C 程序到可执行文件]", result)
+        self.assertNotIn("原片", result.split("---")[0])
+        self.assertIn("[3. 汇编语言基础]", result)
+
     def test_toc_slug_matches_rehype_slug_format(self):
         md = "## Hello World\n\n内容\n\n## AI 风口的舆论炒作与现实"
         result = note_helper.prepend_toc(md)
